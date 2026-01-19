@@ -1,29 +1,8 @@
 # AeroStack-RL Program Plan
 
-## 1. Requirements Review & Analysis
+## 1. System Architecture
 
-### 1.1 Acceptance Criteria Refinement
-Review of `URS.md` identified the need for more specific, quantifiable acceptance criteria for "Must" requirements.
-
-| ID | Original Requirement | Refined Acceptance Criteria / Metric |
-| :--- | :--- | :--- |
-| **REQ-1.1** | ROS ready state after power-on | System boots to `ros2 node system_check` ok status in **< 45 seconds** from power application. |
-| **REQ-2.1** | Connect embedded nodes | FCU (via UART) @ >50Hz, Lidar/Camera (via USB/CSI) @ Target FPS with **< 10ms transport latency**. |
-| **REQ-3.3** | UART debugging | Dedicated debug port exposed; `minicom` session captures boot log + crash dumps without dropping frames @ 115200 baud. |
-| **REQ-7.1** | Measure loop latency | End-to-End (Sensor -> ROS -> Actuator) latency is **deterministic and < 20ms** (or compatible with flight control loop). |
-
-### 1.2 Missing / Implicit Requirements
-| ID | Requirement | Priority | Rationale |
-| :--- | :--- | :--- | :--- |
-| **REQ-SAFE-1** | System Watchdog | **M** | Hardware watchdog must reset the STM32MP2 if the Linux kernel hangs. |
-| **REQ-DATA-1** | Log Storage Management | **S** | System must auto-rotate or stop logging when disk usage > 90% to prevent corruption. |
-| **REQ-PWR-1** | Safe Shutdown | **M** | Soft shutdown command must sync disks before cutting power (prevent FS corruption). |
-
----
-
-## 2. System Architecture Proposal
-
-### 2.1 High-Level Architecture
+### 1.1 High-Level Architecture
 The system follows a Companion Computer paradigm where the **STM32MP257F-DK** acts as the high-level brain, connected to a dedicated Flight Control Unit (FCU).
 
 *   **Compute Module**: STM32MP257F-DK
@@ -34,7 +13,7 @@ The system follows a Companion Computer paradigm where the **STM32MP257F-DK** ac
     *   **UART/Serial**: MAVLink bridge between STM32MP2 (Linux) and FCU.
     *   **OpenAMP (RPMsg)**: *Internal* IPC between Cortex-A and Cortex-M on the MP2 (if utilized).
 
-### 2.2 Software Stack (Linux Side)
+### 1.2 Software Stack (Linux Side)
 *   **OS**: Custom Yocto or Minimal Ubuntu image (optimized for boot time).
 *   **Middleware**: ROS 2 (DDS FastRTPS/CycloneDDS configured for shm).
 *   **Key Nodes**:
@@ -45,7 +24,7 @@ The system follows a Companion Computer paradigm where the **STM32MP257F-DK** ac
 
 ---
 
-## 3. Detailed Implementation Plan (WBS)
+## 2. Detailed Implementation Plan (WBS)
 
 ### Phase 0: Platform Foundation (BSP & OS)
 **Goal**: Stable Linux environment with basic connectivity and real-time tweaks.
@@ -53,83 +32,134 @@ The system follows a Companion Computer paradigm where the **STM32MP257F-DK** ac
 | ID | Task | Deliverable | Priority |
 | :--- | :--- | :--- | :--- |
 | **T-0.1** | **Setup STM32MP2 Dev Environment**<br>Install SDK, Flash tools, Serial console access. | Working Build Host | M |
-| **T-0.2** | **Build Minimal Linux Image**<br>Yocto/Buildroot config. Strip GUI. Enable PREEMPT_RT if possible. | Bootable Image | M |
-| **T-0.3** | **Configure Connectivity**<br>Static IP on eth0, WiFi setup (if applicable), SSH keys. | Network Config Script | M |
-| **T-0.4** | **Enable Hardware Interfaces**<br>Device Tree overlay for UARTs, I2C, SPI. Verify /dev/tty* presence. | DTB / Overlays | M |
-| **T-0.5** | **Boot Time Optimization (Sub-phase)**<br>Disable unused services (systemd-analyze). | Boot Trace Log (<45s target) | S |
+| **T-0.2** | **Build Minimal Linux Image**<br>Yocto/Buildroot config. Strip GUI. Enable PREEMPT_RT. | Bootable Image | M |
+| **T-0.3** | **Configure Connectivity**<br>Static IP, network config. | Network Config Script | M |
+| **T-0.4** | **Hardware Interfaces & Watchdog**<br>Device Tree for UARTs/I2C/SPI. Enable HW Watchdog (REQ-SAFE-1). | DTB / Overlays | M |
+| **T-0.5** | **Boot & Shutdown Optimization**<br>Optimize boot time (REQ-1.1), configure safe shutdown (REQ-PWR-1). | Boot Trace Log | M |
 
 ### Phase 1: ROS 2 Architecture & FCU Link
-**Goal**: ROS 2 running and talking to the Flight Controller.
+**Goal**: ROS 2 running and talking to the Flight Controller with sync.
 
 | ID | Task | Deliverable | Priority |
 | :--- | :--- | :--- | :--- |
-| **T-1.1** | **Install ROS 2 Base**<br>Cross-compile or install arm64 binaries. Verify `ros2 run demo_nodes_cpp talker`. | ROS 2 Environment | M |
-| **T-1.2** | **Deploy MAVROS/MicroXRCE-DDS**<br>Bridge node setup. | Communication with FCU | M |
-| **T-1.3** | **Establish Hardware Link (UART)**<br>Wiring STM32MP2 UART to FCU TELEM port. Baud rate tuning. | `mavlink_inspector` output | M |
-| **T-1.4** | **Create AeroStack Workspace**<br>Colcon workspace structure, core package skeletal. | Git Repo Structure | M |
+| **T-1.1** | **Install ROS 2 Base**<br>Cross-compile arm64 binaries. | ROS 2 Environment | M |
+| **T-1.2** | **Deploy Bridge & Time Sync**<br>MAVROS/MicroXRCE-DDS + Timesync Setup (REQ-TIME-1). | Communication + Sync | M |
+| **T-1.3** | **Hardware Link Tuning (UART)**<br>Tune for 50Hz+, low drop (REQ-2.1). Debug port setup (REQ-3.3). | `mavlink_inspector` output | M |
+| **T-1.4** | **Create Workspace**<br>Colcon structure. | Git Repo | M |
 
 ### Phase 2: Sensor Integration & Logging
-**Goal**: Trusted data flowing into ROS topics.
+**Goal**: Trusted data flow and managed storage.
 
 | ID | Task | Deliverable | Priority |
 | :--- | :--- | :--- | :--- |
-| **T-2.1** | **Integrate Primary Sensors**<br>Driver nodes for specific sensors (Cam, Lidar). Check timestamps. | Validated Topics | M |
-| **T-2.2** | **Implement Time Sync**<br>Chrony/NTP or PTP if networked. MAVLink timesync for FCU. | Time Offset Graphs | M |
-| **T-2.3** | **Health Monitor Node**<br>Node that subscribes to critical topics and publishes `/system/status`. | `aerostack_health` pkg | M |
-| **T-2.4** | **Logging Configuration**<br>Rosbag2 config (compression, split size, storage path). | `launch_record.py` | S |
+| **T-2.1** | **Integrate Sensors**<br>Drivers for Cam/Lidar. | Validated Topics | M |
+| **T-2.2** | **Health & Failsafe Node**<br>Monitor system status. Implement Loss of ROS > 1s logic (REQ-SAFE-3). | `aerostack_health` pkg | M |
+| **T-2.3** | **Logging & Storage Mgmt**<br>Rosbag config + Auto-rotate script (REQ-DATA-1). | recording script | M |
 
 ### Phase 3: Simulation-in-the-Loop (SITL)
 **Goal**: Develop and test without risking hardware.
 
 | ID | Task | Deliverable | Priority |
 | :--- | :--- | :--- | :--- |
-| **T-3.1** | **Setup Gazebo/Sim Container**<br>SITL environment (e.g., PX4 SITL + Gazebo Garden). | Dockerfile / Compose | M |
-| **T-3.2** | **Bridge Sim to Hardware Interface**<br>Ensure `rl_agent` sees same topics in Sim as Real. | Interface Abstraction Layer | M |
-| **T-3.3** | **Disturbance Injection Module**<br>Add wind/noise models to Gazebo plugins. | Benchmarking Scenarios | S |
+| **T-3.1** | **Setup Gazebo SITL**<br>PX4 SITL + Gazebo. | Sim Container | M |
+| **T-3.2** | **Sim-Real Parity**<br>Ensure interfaces match. | Parity Report | M |
+| **T-3.3** | **Disturbance Injection**<br>Wind/Noise models. | Benchmarking Scenarios | S |
 
 ### Phase 4: RL Infrastructure & Autonomy
 **Goal**: The core "AeroStack-RL" capability.
 
 | ID | Task | Deliverable | Priority |
 | :--- | :--- | :--- | :--- |
-| **T-4.1** | **Gym-ROS Interface**<br>OpenAI Gym wrapper converting Observations <-> ROS Topics. | `aerostack_gym` pkg | M |
-| **T-4.2** | **Policy Loader Node**<br>Python/C++ node to load ONNX/TorchScript models dynamically. | `policy_runner` node | M |
-| **T-4.3** | **Safety Failsafe Implementation**<br>Geofence + Manual Override triggers in software. | Safety Check Logic | M |
-| **T-4.4** | **Latency Profiling**<br>Instrument code to measure Observation -> Action delay. | Performance Report | M |
+| **T-4.1** | **Gym-ROS Interface**<br>OpenAI Gym wrapper. | `aerostack_gym` pkg | M |
+| **T-4.2** | **Policy Loader & Perf**<br>Runtime loader. Optmize for Memory < 512MB (REQ-PERF-2). | `policy_runner` node | M |
+| **T-4.3** | **Safety & Override**<br>Manual Override < 100ms logic (REQ-SAFE-2). | Safety Check Logic | M |
+| **T-4.4** | **Latency & CPU Profiling**<br>Measure End-to-End < 20ms (REQ-7.1), CPU budget (REQ-PERF-1). | Performance Report | M |
 
 ### Phase 5: Verification & Full System Test
 **Goal**: Flight readiness.
 
 | ID | Task | Deliverable | Priority |
 | :--- | :--- | :--- | :--- |
-| **T-5.1** | **Bench Test (Hardware)**<br>Long-duration run (2h) logging stability test on desk. | Stability Log | M |
-| **T-5.2** | **Sim-to-Real Validation**<br>Run simple policy in Sim, then Real (tethered/safe). Compare logs. | Validation Report | M |
-| **T-5.3** | **Documentation Finalization**<br>User manual, setup guide, reproducible scripts. | Final Docs | M |
+| **T-5.1** | **Bench & Stability Test**<br>Long-duration run. | Reliability Report | M |
+| **T-5.2** | **Sim-to-Real Validation**<br>Confirm policy transfer. | Validation Report | M |
+| **T-5.3** | **Documentation**<br>Manuals and Configs. | Final Docs | M |
 
 ---
 
-## 4. Verification & Validation Plan (V&V)
+## 3. Verification & Validation Plan (V&V)
 
-### 4.1 Test Cases Mapping
+### 3.1 Test Cases Mapping
 
 | Req ID | Test Case ID | Procedure Summary | Pass Criteria |
 | :--- | :--- | :--- | :--- |
-| **REQ-1.1** | **TC-BOOT-01** | Cold boot device, measure time to `ros2 node list` populated. | < 45s, all nodes active. |
-| **REQ-2.1** | **TC-COM-01** | Send MAVLink Heartbeat from FCU. Check ROS `/mavros/state`. | Update rate > 0.5Hz, `connected: true`. |
-| **REQ-4.1** | **TC-LOG-01** | Record 10min flight bag. Run `ros2 bag info`. | No dropped messages > 1%, defined size. |
-| **REQ-8.1** | **TC-SAFE-01** | Trigger Kill Switch (Phys/Soft). Monitor PWM output scope. | Motor signal = Disarmed (1000us/0) in < 200ms. |
-| **REQ-5.2** | **TC-RL-01** | Swap Policy A (Hover) to B (Circle) at runtime via Service. | Switch distinct capability < 2s, no crash. |
+| **REQ-1.1** | **TC-BOOT-01** | Cold boot 10x with script. | 95th percentile < 45s. |
+| **REQ-2.1** | **TC-COM-01** | Profiler script on UART topic. | Rate ≥ 50Hz, Loss < 0.1%. |
+| **REQ-3.3** | **TC-UART-01** | 30-min stress test @ 921600 baud. | 0 dropped frames. |
+| **REQ-7.1** | **TC-LAT-01** | `ros2_tracing` end-to-end trace. | Latency ≤ 20ms, Jitter ≤ 5ms. |
+| **REQ-SAFE-1** | **TC-WD-01** | Inject Kernel Panic (`echo c > /proc/sysrq-trigger`). | Reboot < 2s. |
+| **REQ-PWR-1** | **TC-PWR-01** | Trigger shutdown. Check FS clean bit. | No corruption. |
+| **REQ-TIME-1** | **TC-SYNC-01** | Check offset between MAVLink & System time. | Drift ≤ 2ms/min. |
+| **REQ-SAFE-2** | **TC-MAN-01** | Toggle RC Switch, measure PWM change. | Delay < 100ms. |
+| **REQ-SAFE-3** | **TC-FAIL-01** | Kill ROS Process. Monitor FCU mode. | FCU -> Stabilized in < 1s. |
+| **REQ-PERF-1** | **TC-CPU-01** | Run full stack + stress. Monitor `htop`. | Load ≤ 70%. |
+| **REQ-PERF-2** | **TC-MEM-01** | Load largest RL policy. Check process RAM. | RSS < 512MB. |
 
 ---
 
-## 5. Phase MVPs & Definitions
+## 4. Phase MVPs & Definitions
 
-*   **P0-MVP (Board Alive)**: Device boots Linux, accessible via SSH, correct Device Tree loaded.
-*   **P1-MVP (ROS Connected)**: ROS 2 installed, can echo `/mavros/imu/data` from connected FCU.
-*   **P2-MVP (Data Valid)**: All sensors publishing valid data; system logs data correctly to disk.
-*   **P3-MVP (Sim Twin)**: User can fly the drone in Simulator using the exact same code launch file as hardware.
-*   **P4-MVP (Smart Pilot)**: System can load a neural network policy and output velocity commands based on inputs.
-*   **P5-MVP (Flight Ready)**: System passes all reliability stress tests and safety checks; ready for field trials.
+*   **P0-MVP (Board Alive)**: Linux boots <45s, Watchdog active, SSH ready.
+*   **P1-MVP (ROS Connected)**: ROS 2 talks to FCU @ 50Hz+, Time synced.
+*   **P2-MVP (Data Valid)**: Sensors valid, Logging handles storage limits.
+*   **P3-MVP (Sim Twin)**: Sim matches Real interfaces; Disturbance tested.
+*   **P4-MVP (Smart Pilot)**: RL Policy runs within CPU/RAM limits; Latency < 20ms.
+*   **P5-MVP (Flight Ready)**: All Safety TCs pass; 2h stability verified.
+
+---
+
+## 5. Traceability Matrix
+
+| Requirement ID | Implemented By (Task) | Verified By (Test Case) |
+| :--- | :--- | :--- |
+| REQ-1.1 (Boot Time) | T-0.5, T-0.2 | TC-BOOT-01 |
+| REQ-1.2 (Boot Chain) | T-0.2, T-0.1 | Health Check Script |
+| REQ-1.3 (Config) | T-0.3, T-2.4 | Config Audit |
+| REQ-PWR-1 (Safe Shutdown) | T-0.5 | TC-PWR-01 |
+| REQ-TIME-1 (Sync) | T-1.2, T-2.2 | TC-SYNC-01 |
+| REQ-2.1 (Connectivity) | T-1.3 | TC-COM-01 |
+| REQ-2.2 (Pub/Sub) | T-1.2, T-2.1 | Rosbag Validation |
+| REQ-2.3 (Modularity) | T-4.2 | Service Test |
+| REQ-3.1 (Sensors) | T-2.1 | Data Analysis |
+| REQ-3.2 (Actuators) | T-1.3 | Actuator Log |
+| REQ-3.3 (Debug UART) | T-1.3 | TC-UART-01 |
+| REQ-4.1 (Telemetry) | T-2.4 | Log Review |
+| REQ-4.2 (Replay) | T-2.4 | Replay Test |
+| REQ-4.3 (Faults) | T-2.2 | Fault Injection |
+| REQ-DATA-1 (Storage) | T-2.3 | Storage Stress Test |
+| REQ-5.1 (Nav Interface) | T-4.1 | Interface Check |
+| REQ-5.2 (Policy Swap) | T-4.2 | TC-RL-01 |
+| REQ-5.3 (Metrics) | T-4.4 | Metric Log |
+| REQ-6.1 (Sim Run) | T-3.1 | Sim Flight |
+| REQ-6.2 (Sim Switch) | T-3.2 | Launch Diff |
+| REQ-6.3 (Disturbances) | T-3.3 | Sim Benchmarking |
+| REQ-7.1 (Latency) | T-4.4 | TC-LAT-01 |
+| REQ-7.2 (Startup) | T-0.5 | Boot Trace |
+| REQ-7.3 (Load) | T-5.1 | Stress Test |
+| REQ-PERF-1 (CPU) | T-4.4 | TC-CPU-01 |
+| REQ-PERF-2 (Memory) | T-4.2 | TC-MEM-01 |
+| REQ-PERF-3 (A/B) | T-0.2 | Update Test |
+| REQ-8.1 (Kill) | T-4.3 | TC-SAFE-01 |
+| REQ-8.2 (Manual Fallback) | T-4.3 | TC-MAN-01 |
+| REQ-8.3 (Geofence) | T-4.3 | Geofence Test |
+| REQ-SAFE-1 (Watchdog) | T-0.4 | TC-WD-01 |
+| REQ-SAFE-2 (Man Latency) | T-4.3 | TC-MAN-01 |
+| REQ-SAFE-3 (Failsafe) | T-2.2 | TC-FAIL-01 |
+| REQ-9.1 (Docs) | T-5.3 | Doc Review |
+| REQ-9.2 (Dash) | T-2.4 | Dashboard Demo |
+| REQ-9.3 (Configs) | T-1.4 | Repo Audit |
+| REQ-10.1 (Sensors) | T-2.1 | Integration Test |
+| REQ-10.2 (Portability) | T-0.1 | Build Test |
+| REQ-10.3 (Missions) | T-4.2 | Mission Test |
 
 ---
 
@@ -137,8 +167,8 @@ The system follows a Companion Computer paradigm where the **STM32MP257F-DK** ac
 
 | Risk | Likelihood | Impact | Mitigation Strategy |
 | :--- | :--- | :--- | :--- |
-| **R1: Boot Time Exceeds Specs** | Medium | Low (Operational annoyance) | Use `systemd-analyze` to prune services; Initramfs optimization; Static IP. |
-| **R2: UART Jitter/Data Loss** | Medium | High (Control Instability) | Use DMA-enabled UART drivers; Increase FIFO buffers; Move to SPI if UART bottlenecks. |
-| **R3: Compute Overload (Heat/Lag)** | High | High (System Freeze) | Passive heatsink upgrade; RL Model Optimization (Quantization INT8). |
-| **R4: Sim-to-Real Gap** | High | High (Crash) | System identification to tune Sim physics; Conservative initial policies. |
-| **R5: SD Card Corruption** | Medium | High (Data Loss/No Boot) | Use Read-Only RootFS overlay; separate partition for Logs; Industrial grade SD card. |
+| **R1: Boot Time > 45s** | Medium | Low | `systemd-analyze` to prune, static IP, preempt-rt. |
+| **R2: UART Jitter** | Medium | High | DMA drivers, FIFO buffers, move to SPI. |
+| **R3: CPU/Thermal Throttling** | High | High | Heatsink, Model Quantization (INT8), Fan. |
+| **R4: Sim-to-Real Divergence** | High | High | System ID for physics tuning, conservative policies. |
+| **R5: SD Card Corruption** | Medium | High | Read-Only RootFS, separate data partition, industrial SD. |
