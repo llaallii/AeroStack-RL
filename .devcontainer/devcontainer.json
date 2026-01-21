@@ -1,0 +1,33 @@
+{
+    "name": "AeroStack-RL Dev",
+    "build": {
+        "dockerfile": "Dockerfile",
+        "args": {
+            "USERNAME": "ros"
+        }
+    },
+    "runArgs": [
+        "--net=host",
+        "--gpus=all",
+        "--privileged"
+    ],
+    "containerEnv": {
+        "DISPLAY": "${localEnv:DISPLAY}",
+        "WAYLAND_DISPLAY": "${localEnv:WAYLAND_DISPLAY}",
+        "XDG_RUNTIME_DIR": "${localEnv:XDG_RUNTIME_DIR}",
+        "PULSE_SERVER": "${localEnv:PULSE_SERVER}"
+    },
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                "ms-vscode.cpptools",
+                "ms-python.python",
+                "ms-iot.vscode-ros",
+                "twxs.cmake",
+                "zxh404.vscode-proto3"
+            ]
+        }
+    },
+    "remoteUser": "ros",
+    "workspaceFolder": "/home/ros/workspace"
+}
