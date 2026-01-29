@@ -11,6 +11,9 @@
         "--gpus=all",
         "--privileged"
     ],
+    "mounts": [
+        "source=/mnt/wslg,target=/mnt/wslg,type=bind"
+    ],
     "containerEnv": {
         "DISPLAY": "${localEnv:DISPLAY}",
         "WAYLAND_DISPLAY": "${localEnv:WAYLAND_DISPLAY}",

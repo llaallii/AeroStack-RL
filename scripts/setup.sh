@@ -24,4 +24,5 @@ else
     echo "[WARN] nvidia-smi not found. Ensure NVIDIA drivers are installed if you need GPU acceleration."
 fi
 
-echo "Environment Setup Complete. Open this folder in VS Code and select 'Reopen in Container'."
+echo "Next Step: Launch the environment with:"
+echo "  ./scripts/run_container.sh"

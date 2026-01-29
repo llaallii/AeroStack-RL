@@ -42,6 +42,12 @@ RUN curl https://packages.osrfoundation.org/gazebo.gpg --output /usr/share/keyri
     && apt-get update && apt-get install -y gz-harmonic \
     && rm -rf /var/lib/apt/lists/*
 
+# Setup Micro-XRCE-DDS Agent
+RUN git clone https://github.com/eProsima/Micro-XRCE-DDS-Agent.git /tmp/Micro-XRCE-DDS-Agent \
+    && cd /tmp/Micro-XRCE-DDS-Agent && mkdir build && cd build \
+    && cmake .. && make && make install && ldconfig \
+    && rm -rf /tmp/Micro-XRCE-DDS-Agent
+
 # Setup user
 # Setup user
 # Check if the user/group already exists (e.g. 'ubuntu' on strict base images) and delete if so, to ensure fresh creation
@@ -55,7 +61,5 @@ RUN if getent passwd $USER_UID; then userdel -r $(getent passwd $USER_UID | cut 
 USER $USERNAME
 WORKDIR /home/$USERNAME/workspace
 
-# Source ROS 2 and Setup Display for XServer
-RUN echo "source /opt/ros/jazzy/setup.bash" >> ~/.bashrc \
-    && echo "export DISPLAY=\$(cat /etc/resolv.conf | grep nameserver | awk '{print \$2}'):0" >> ~/.bashrc \
-    && echo "export LIBGL_ALWAYS_INDIRECT=1" >> ~/.bashrc
+# Source ROS 2
+RUN echo "source /opt/ros/jazzy/setup.bash" >> ~/.bashrc

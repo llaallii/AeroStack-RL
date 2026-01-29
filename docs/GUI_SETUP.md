@@ -20,9 +20,13 @@ Since native WSLg is not working on your host, we will use **VcXsrv**, a Windows
 
 ## 3. Configure Container
 I have updated the Dockerfile to automatically point the display to your Windows host.
-1.  **Rebuild Container**: `Dev Containers: Rebuild and Reopen`.
-2.  **Verify**: Run `echo $DISPLAY` inside the terminal. It should show an IP address ending in `:0`.
-3.  **Test**: Run `xeyes` (if installed) or `gz sim`.
+
+1.  **Rebuild Container via Shell**: Run the manual launch script in your WSL terminal:
+    ```bash
+    ./scripts/run_container.sh
+    ```
+2.  **Verify**: Run `echo $DISPLAY` inside the container terminal. It should show your WSL nameserver IP ending in `:0.0`.
+3.  **Test**: Run `xeyes` or `gz sim -v 4 shapes.sdf`.
 
 ## Troubleshooting
 *   **Firewall**: Ensure VcXsrv is allowed through the Windows Firewall (Public and Private networks).
