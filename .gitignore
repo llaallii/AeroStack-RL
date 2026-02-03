@@ -9,6 +9,7 @@ __pycache__/
 
 # Retained/Retired archives
 retired/
+px4/
 
 # Data and large scripts
 *.bson
