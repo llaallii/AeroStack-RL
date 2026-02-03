@@ -1,33 +1,43 @@
-# GUI Setup Guide (VcXsrv)
+# GUI Setup Guide
 
-Since native WSLg is not working on your host, we will use **VcXsrv**, a Windows X Server, to display Gazebo.
+AeroStack-RL uses Gazebo Harmonic for simulation. In a WSL2 environment, GPU-accelerated GUI performance is critical.
 
-## 1. Install VcXsrv
-1.  Download **VcXsrv** (available as "VcXsrv Windows X Server" on SourceForge).
-2.  Install with default options.
+## 1. Native WSLg (Recommended)
+If you are on Windows 11 or updated Windows 10, **WSLg** provides native high-performance GUI support.
 
-## 2. Configure VcXsrv (Launch XLaunch)
-1.  Open **XLaunch** from your Start Menu.
-2.  **Display Settings**: Select "Multiple windows", Display number `-1`. Click Next.
-3.  **Client Startup**: Select "Start no client". Click Next.
-4.  **Extra Settings**:
-    *   [x] **Clipboard**
-    *   [x] **Native opengl**
-    *   [x] **Disable access control** (Critical! This allows Docker to connect).
-5.  Click Next, then **Finish**.
+### Prerequisites
+- Latest **NVIDIA Drivers** installed on Windows.
+- WSL version 2.
 
-> **Tip**: You can "Save configuration" to a `.xlaunch` file on your Desktop to double-click next time.
+### Verification
+In your WSL terminal:
+```bash
+# Check if hardware acceleration is active (should show NVIDIA)
+glxinfo -B | grep "OpenGL renderer"
+```
 
-## 3. Configure Container
-I have updated the Dockerfile to automatically point the display to your Windows host.
+If it says `llvmpipe`, you are using software rendering. Ensure your Windows NVIDIA drivers are up to date.
 
-1.  **Rebuild Container via Shell**: Run the manual launch script in your WSL terminal:
+---
+
+## 2. VcXsrv (Legacy/Fallback)
+If native WSLg is not working, you can use **VcXsrv** as a fallback X Server.
+
+### Installation & Configuration
+1.  Download and install **VcXsrv**.
+2.  Launch **XLaunch**.
+3.  Choose **Multiple windows**.
+4.  Check **Native opengl**.
+5.  Check **Disable access control** (Critical).
+6.  In WSL, export your display:
     ```bash
-    ./scripts/run_container.sh
+    export DISPLAY=$(cat /etc/resolv.conf | grep nameserver | awk '{print $2}'):0.0
     ```
-2.  **Verify**: Run `echo $DISPLAY` inside the container terminal. It should show your WSL nameserver IP ending in `:0.0`.
-3.  **Test**: Run `xeyes` or `gz sim -v 4 shapes.sdf`.
 
-## Troubleshooting
-*   **Firewall**: Ensure VcXsrv is allowed through the Windows Firewall (Public and Private networks).
-*   **Black Screen**: Try unchecking "Native opengl" in XLaunch if 3D rendering fails.
+---
+
+## 3. High-DPI Scaling (Optional)
+If the Gazebo UI is too small:
+1.  Right-click `wslg.exe` (or your terminal).
+2.  Go to Properties -> Compatibility -> Change high DPI settings.
+3.  Override high DPI scaling behavior (System or System Enhanced).

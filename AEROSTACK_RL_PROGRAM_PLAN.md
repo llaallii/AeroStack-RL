@@ -6,7 +6,7 @@
 The system follows a Companion Computer paradigm where the **STM32MP257F-DK** acts as the high-level brain, connected to a dedicated Flight Control Unit (FCU).
 
 *   **Compute Module**: STM32MP257F-DK
-    *   **Cortex-A35 x2 (Linux)**: Runs ROS 2 (Jazzy/Humble), RL Inference, Path Planning, Logging.
+    *   **Cortex-A35 x2 (Linux)**: Runs ROS 2 (Jazzy), RL Inference, Path Planning, Logging.
     *   **Cortex-M33 (Real-Time)**: *Optional* - Can be used for hard real-time IO expansion or Safety Watchdog monitoring if FCU IO is insufficient.
 *   **Flight Controller (FCU)**: Standard Pixhawk-class or STM32-based FCU running PX4/ArduPilot. Handles attitude control, motor mixing, and failsafe.
 *   **Interconnects**:
@@ -61,7 +61,7 @@ The system follows a Companion Computer paradigm where the **STM32MP257F-DK** ac
 
 | ID | Task | Deliverable | Priority |
 | :--- | :--- | :--- | :--- |
-| **T-3.1** | **Setup Gazebo SITL**<br>PX4 SITL + Gazebo. | Sim Container | M |
+| **T-3.1** | **Setup Gazebo SITL**<br>PX4 SITL + Gazebo Harmonic natively in WSL2. | Native WSL2 Environment | M |
 | **T-3.2** | **Sim-Real Parity**<br>Ensure interfaces match. | Parity Report | M |
 | **T-3.3** | **Disturbance Injection**<br>Wind/Noise models. | Benchmarking Scenarios | S |
 
@@ -172,3 +172,9 @@ The system follows a Companion Computer paradigm where the **STM32MP257F-DK** ac
 | **R3: CPU/Thermal Throttling** | High | High | Heatsink, Model Quantization (INT8), Fan. |
 | **R4: Sim-to-Real Divergence** | High | High | System ID for physics tuning, conservative policies. |
 | **R5: SD Card Corruption** | Medium | High | Read-Only RootFS, separate data partition, industrial SD. |
+
+---
+
+## 7. Archived Components
+
+Legacy components, including the original Docker setup, older scripts, and temporary data, have been moved to the `retired/` directory to maintain a clean workspace. These remain available for reference if needed.

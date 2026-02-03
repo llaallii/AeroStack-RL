@@ -28,7 +28,7 @@ echo "Checking Sensor Rates (target 10-30Hz)..."
 check_rate() {
     TOPIC=$1
     echo -n "  $TOPIC: "
-    RATE=$(ros2 topic hz $TOPIC -c 5 | grep "average rate" | awk '{print $4}' | cut -d'.' -f1)
+    RATE=$(timeout 5 ros2 topic hz $TOPIC | grep "average rate" | head -n 1 | awk '{print $4}' | cut -d'.' -f1)
     if [ -n "$RATE" ] && [ "$RATE" -gt 0 ]; then
         echo "[$RATE Hz]"
     else

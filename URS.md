@@ -73,7 +73,7 @@ Here are **high-level user requirements** for **AeroStack-RL** project.
 
 | ID | Requirement | Priority | Acceptance Criteria / Metric | Verification Method |
 | --- | --- | --- | --- | --- |
-| REQ-6.1 | Full stack runs in simulation | **M** | Identical ROS interfaces | SITL run w/ real launch files |
+| REQ-6.1 | Full stack runs in simulation | **M** | Identical ROS interfaces. Native WSL2 execution. | SITL run w/ real launch files |
 | REQ-6.2 | Switch sim ↔ hardware | **M** | No code modification | Diff check of launch files |
 | REQ-6.3 | Inject disturbances | **S** | Noise/delay models applied | Sim data analysis |
 

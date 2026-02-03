@@ -6,3 +6,11 @@ __pycache__/
 *.pyc
 .DS_Store
 *.swp
+
+# Retained/Retired archives
+retired/
+
+# Data and large scripts
+*.bson
+dataman
+Miniconda3-latest-Linux-x86_64.sh
