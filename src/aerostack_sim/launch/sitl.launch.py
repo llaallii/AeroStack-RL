@@ -28,16 +28,15 @@ def generate_launch_description():
         px4_models_dir
     )
     
-    pkg_fcu_bridge = get_package_share_directory('aerostack_fcu_bridge')
-    # Add site-packages to PYTHONPATH (Ubuntu 24.04 uses Python 3.12)
-    site_packages = os.path.join(os.path.dirname(os.path.dirname(pkg_fcu_bridge)), 'lib/python3.12/site-packages')
+    # Add site-packages to PYTHONPATH is no longer needed manually if running within Conda
     
     # Start with current process env to preserve ROS 2 and Gazebo paths
     full_env = os.environ.copy()
     full_env['GZ_SIM_RESOURCE_PATH'] = resource_path
-    full_env['PYTHONPATH'] = site_packages + ':' + full_env.get('PYTHONPATH', '')
-    # Ensure standard bins are in PATH for PX4 scripts
-    full_env['PATH'] = full_env.get('PATH', '') + ':' + '/usr/bin' + ':' + '/bin' + ':' + '/usr/local/bin'
+    
+    # Ensure standard bins are in PATH for PX4 scripts if not already there
+    if '/usr/local/bin' not in full_env.get('PATH', ''):
+        full_env['PATH'] = full_env.get('PATH', '') + ':' + '/usr/local/bin'
     
     # GUI/Rendering environment
     full_env['DISPLAY'] = os.environ.get('DISPLAY', ':0')
@@ -119,7 +118,8 @@ def generate_launch_description():
     )
 
     # 6. AeroStack FCU Bridge (Normalization Node)
-    fcu_bridge_bin = os.path.join(os.path.dirname(os.path.dirname(pkg_fcu_bridge)), 'bin', 'bridge_node')
+    # Using absolute path because 'ros2 run' is failing with ament_python in this environment
+    fcu_bridge_bin = os.path.join(current_dir, 'install/aerostack_fcu_bridge/bin/bridge_node')
     fcu_bridge = ExecuteProcess(
         cmd=[fcu_bridge_bin],
         env=full_env,
